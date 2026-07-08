@@ -1,7 +1,8 @@
 # DANCE-APP — Project Context
 
-Read this before writing any code. (CLAUDE.md imports this file — it
-was previously a dead link pointing at a file that didn't exist.)
+Read this before writing any code. (CLAUDE.md imports this file.)
+The standing implementation plan (what to build next, task by task)
+is PLAN.md — work it in order.
 
 ## What this is
 
