@@ -1,175 +1,183 @@
-# DANCE-APP — PRD & Roadmap (standing plan)
+# DANCE-APP — PRD & Roadmap (standing plan, v2 — post-viability-vet)
 
 Execute task by task, in order. Read AGENTS.md first — the privacy rule
-there is the product's identity. This plan takes the POC to a real,
-ad-supported platform grown with AI-driven marketing.
+is the product's identity. This plan replaced v1 on 2026-07-08 after a
+viability audit; the audit's findings are baked in as gates below.
 
 ## 1. Objective
 
-Turn the pose-detection POC into a **public dance-learning platform**.
-Users upload a dance video (a TikTok they want to learn, a class
-recording), get a skeleton breakdown with step-by-step timeline, and
-practice against it. Revenue: ads, once there's traffic. Growth: mostly
-behind-the-scenes AI work (SEO content, share assets) rather than paid
-acquisition. The privacy angle — *your video never leaves your device* —
-is both the architecture and the marketing hook.
+A consumer platform for **learning any dance from any video** — aimed
+at non-typical dancers, not studio kids. Two entry doors, same user:
+someone chasing a trending TikTok dance, and someone who got sent a
+video they MUST learn for an event (wedding sangeet, culture show,
+flash mob). The deadline crowd is the beachhead because their pain is
+acute and every event group is 6–10 users sharing one link — but the
+destination is the mass market of social dance learners.
+
+**Where the money is (stated honestly, in order of arrival):**
+1. **Pro tier** (small monthly or one-time price): unlimited/longer
+   breakdowns, team spaces. Arrives at M4. This is the first real
+   revenue.
+2. **Ads** on public content pages — ONLY at scale. Display ads pay
+   ~$2–5 per 1,000 views; 100k monthly views ≈ $200–500/mo. Ads are a
+   scale prize, not a launch strategy. Gate: M5.
+3. **Team/studio plans** — later, after organic teams appear.
+
+Growth engine: the product markets itself — skeleton-breakdown clips
+posted to TikTok/Reels (novel visual, native to where dance discovery
+happens) + group-share links that recruit whole event parties at once.
+"AI marketing" = generating that content pipeline, not SEO alone.
 
 ## 2. Context
 
-- Working POC: in-browser MediaPipe pose detection, skeleton-only
-  render, step timeline with word/lyric tags, Gemini gesture
-  suggestions, Supabase anonymous-auth persistence of breakdowns
-  (metadata only, never video). Git repo created 2026-07-08, one
-  commit, no remote, no deploy.
-- Must not break: the video-never-leaves-device rule (AGENTS.md), the
-  skeleton-only display, metadata-only persistence.
-- No name/brand yet; no domain.
+- Working POC (see AGENTS.md): in-browser MediaPipe pose detection,
+  skeleton render, step timeline, Gemini gesture tags, breakdown
+  persistence via anonymous Supabase auth. Build green. No deploy, no
+  name, no remote yet.
+- **Audit findings that shape this plan:**
+  - The skeleton as a LEARNING aid is unproven — learners may get more
+    from the original video slowed/mirrored/looped. Hedge: always show
+    the original video side-by-side with the skeleton (the video is
+    local to their device anyway — privacy rule intact).
+  - Choreography is copyrightable (Hanagami v. Epic). Public content
+    pages use permissioned or self-created breakdowns; do not
+    mass-publish skeletons of others' choreo once money is involved.
+  - Ad math (above) means traffic gates, not hope, decide when ads go
+    live.
+- Must not break: video never leaves the device; metadata-only
+  persistence; anonymous → account upgrade must preserve breakdowns.
 
-## 3. Success criteria
+## 3. Success criteria (each stage gates the next)
 
-- [ ] Deployed publicly with a name and domain, loading fast on mobile
-- [ ] A first-time visitor can upload a video, get a skeleton +
-      timeline, and practice a step loop without instructions
-- [ ] Breakdowns can be published to public, SEO-indexable pages
-      (skeleton data only — never video), and those pages rank for
-      "[song/dance name] tutorial"-style queries
-- [ ] Optional accounts exist (email) that upgrade anonymous sessions
-      without losing saved breakdowns
-- [ ] Analytics show real visitor traffic; ad units render for
-      non-creating visitors once traffic justifies it
-- [ ] A repeatable AI marketing loop is documented and running (content
-      calendar, share assets, SEO pages)
+- [ ] **G0 Validation:** ≥5 real deadline-dancers used a breakdown on
+      their own video; ≥2 forwarded it to their group unprompted; at
+      least one said the practice view beat re-watching the raw video
+- [ ] MVP live on a public URL; a first-time phone visitor completes
+      upload → practice loop with zero instructions
+- [ ] 10 active groups (event parties or campus teams) in the first
+      season
+- [ ] Pro tier live with ≥1 paying user (any amount — proves the rail)
+- [ ] Ads live ONLY after sustained meaningful traffic (Ashwin sets
+      the number at M5 start), on content pages only
+- [ ] The TikTok content loop runs weekly on ≤5 hrs/week of Ashwin's
+      time
 
 ## 4. Constraints
 
-- **Privacy rule is absolute:** no video or frame data to any server,
-  ever. Publishing a breakdown publishes skeleton keypoints + steps +
-  metadata only.
-- Free/near-free infra: Vercel hobby → upgrade only when traffic
-  demands; Supabase free tier; Gemini free tier with graceful failure.
-- Ads come AFTER the experience works — no ad code before M4. When
-  they come: non-intrusive placements, never over the practice view.
-- Out of scope for this plan: native mobile apps, video hosting of any
-  kind, social feeds/comments, multi-dancer detection.
+- **Privacy rule is absolute** — no video/frames to any server, ever.
+  Published pages carry skeleton keypoints + steps only.
+- Free/near-free infra until revenue exists (Vercel hobby, Supabase
+  free, Gemini free tier with graceful failure).
+- No ads before the M5 gate; never on the create/practice views.
+- Public/published breakdowns: own recordings or permissioned ones
+  only once the site is commercial.
+- Solo-shippable on the known stack; no new paradigms without a
+  stated reason.
+- Out of scope this plan: native apps, video hosting, social
+  feeds/comments, multi-dancer scoring, studio marketplace.
 
 ## 5. Milestones
 
-- **M1 — Practice-worthy core.** Goal: someone can actually learn a
-  step from it, on a phone.
-- **M2 — Platform foundation.** Goal: named, deployed, accounts,
-  publishable breakdowns.
-- **M3 — SEO & content engine.** Goal: public pages that earn organic
-  traffic (this is the ad inventory).
-- **M4 — Monetization & analytics.** Goal: measure everything, turn on
-  ads when traffic justifies.
-- **M5 — Growth automation.** Goal: the behind-the-scenes AI marketing
-  loop runs weekly.
+- **M0 — Validation sprint (zero dollars, ~2 weeks).** Prove practice
+  value + group sharing before building more. Kill-gate G0.
+- **M1 — Practice-worthy core.** Side-by-side player, loop/speed/
+  mirror, mobile-solid.
+- **M2 — Shareable platform.** Name, deploy, share links, optional
+  accounts.
+- **M3 — Content engine.** The weekly TikTok/clip pipeline + public
+  pages for permissioned content.
+- **M4 — First revenue.** Pro tier + analytics.
+- **M5 — Scale monetization.** Ads (traffic-gated) + team plans.
 
 ## 6. Task breakdown
 
+### M0 — Validation sprint (do NOT skip to M1)
+
+1. **Skeleton clips test.** Use the POC to make 3–5 breakdowns of
+   trending dances; screen-record; Ashwin posts to TikTok/Reels.
+   Done when: posted, and saves/"link?" comments tallied after 7 days.
+2. **Deadline-dancer test.** Find 5 people with a real event dance
+   (campus teams, family weddings). Make each a breakdown of THEIR
+   video; watch at least one practice with it live.
+   Done when: 5 sessions logged with notes on whether they used the
+   skeleton, the loop, or just the original video.
+3. **Share test.** Count unprompted forwards to groupmates.
+   Done when: the G0 boxes can be answered yes/no with numbers, and
+   the verdict is written into this file. **If G0 fails, stop and
+   rethink with Ashwin — do not proceed to M1 on momentum.**
+
 ### M1 — Practice-worthy core
 
-1. **Practice mode.** Loop playback of a selected step segment with
-   speed control (0.25x–1x) on the skeleton view. Files:
-   src/app/components/SkeletonViewer.tsx, Timeline.tsx. Done when: a
-   step can be looped at half speed smoothly.
-2. **Mobile pass.** Verify detection + playback on a real phone;
-   fix layout, touch targets, and performance (frame skipping if
-   needed). Files: page.tsx, SkeletonViewer.tsx, globals.css. Done
-   when: end-to-end flow works on a mid-range phone browser.
-3. **Empty/error states.** No-pose-detected, unsupported codec, long
-   video warning (suggest trimming), Supabase-unreachable. Files:
-   page.tsx, SkeletonViewer.tsx. Done when: each failure path shows a
-   human message, never a blank screen.
-4. **Mirror toggle.** Flip the skeleton horizontally (learners mirror
-   their teacher). Files: SkeletonViewer.tsx. Done when: toggle works
-   during playback.
+1. **Side-by-side player.** Original video and skeleton in one
+   practice view (video stays local). Files: SkeletonViewer.tsx,
+   page.tsx. Done when: both stay in sync during playback on desktop
+   and phone.
+2. **Practice mode.** Loop a selected step segment, 0.25x–1x speed.
+   Files: SkeletonViewer.tsx, Timeline.tsx. Done when: a step loops
+   smoothly at half speed.
+3. **Mirror toggle.** Files: SkeletonViewer.tsx. Done when: flips both
+   video and skeleton during playback.
+4. **Mobile pass.** Real phone test; move detection to a Web Worker if
+   the main thread janks. Files: SkeletonViewer.tsx, globals.css.
+   Done when: full flow works on a mid-range phone.
+5. **Error states.** No-pose, bad codec, long-video warning, Supabase
+   down. Done when: every failure shows a human message.
 
-### M2 — Platform foundation
+### M2 — Shareable platform
 
-1. **Name + brand basics.** Shortlist names with Ashwin (decision is
-   his — do not pick unilaterally), check domain availability, set
-   title/OG metadata. Files: layout.tsx, package.json name. Done when:
-   name chosen, domain bought, metadata set.
-2. **Push to GitHub + deploy to Vercel.** Set env vars, custom domain.
-   Done when: production URL serves the app; detection works in prod.
-3. **Optional email accounts.** Supabase email auth as an upgrade path
-   from anonymous (linkIdentity / convert flow) so existing anonymous
-   breakdowns survive signup. Files: src/lib/supabase.ts, breakdowns.ts,
-   new auth UI component. Done when: an anonymous user with saved
-   breakdowns signs up and still sees them.
-4. **Publish flow + schema.** Add is_public flag + slug + title/song
-   fields to breakdowns; a "Publish" action with a clear notice of
-   exactly what becomes public (skeleton + steps, never video). RLS:
-   public rows readable by anyone, writable by owner only. Files:
-   breakdowns.ts, new migration SQL, page.tsx. Done when: a published
-   breakdown is visible logged-out; private ones are not.
+1. **Name + domain.** Shortlist with Ashwin (his call), set metadata.
+   Done when: chosen, bought, deployed under it.
+2. **GitHub remote + Vercel deploy.** Private repo, env vars, custom
+   domain. Done when: production URL works end to end.
+3. **Share links.** is_public flag + slug; a read-only breakdown page
+   (skeleton + steps + counts, NO video) any groupmate can open from a
+   link. RLS: public read, owner write. Files: breakdowns.ts, new
+   migration, new /d/[slug] page. Done when: a logged-out phone user
+   can practice from a shared link.
+4. **Optional accounts.** Supabase email auth upgrading anonymous
+   sessions without losing breakdowns. Done when: the survival case is
+   tested explicitly.
 
-### M3 — SEO & content engine
+### M3 — Content engine
 
-1. **Public breakdown pages.** /d/[slug] server-rendered pages:
-   title, song, step list, skeleton preview animation (from stored
-   keypoints — requires storing keypoint frames for published
-   breakdowns; still no video). Files: new src/app/d/[slug]/page.tsx,
-   schema addition for keypoint data on published rows. Done when: a
-   published page renders its animated skeleton with no source video
-   present.
-2. **SEO plumbing.** Sitemap, per-page metadata, OG image per
-   breakdown (skeleton still frame), robots.txt. Files:
-   src/app/sitemap.ts, og route. Done when: pages indexed (verify in
-   Search Console).
-3. **Seed content.** Create 10–20 quality public breakdowns of
-   popular/trending dances (Ashwin records or sources his own input
-   videos — the videos still never upload; only breakdowns publish).
-   Done when: 10+ live public pages exist.
-4. **Landing page.** Real homepage: privacy hook front and center,
-   demo GIF of skeleton, browse public breakdowns. Files: page.tsx
-   restructure (move tool to /create). Done when: a visitor
-   understands the product in 5 seconds.
+1. **Share-asset export.** One click renders a skeleton preview
+   clip/GIF + caption for socials from any breakdown. Done when: one
+   click yields a postable asset.
+2. **Weekly pipeline doc.** docs/growth-playbook.md: 3 dances/week →
+   breakdown → post → link in bio, sized to ≤5 hrs/wk. Done when: one
+   full cycle run and timed.
+3. **Public library page.** Browse permissioned/own public breakdowns;
+   per-page metadata + OG image; sitemap. Done when: pages indexed.
 
-### M4 — Monetization & analytics
+### M4 — First revenue
 
-1. **Privacy-respecting analytics.** Vercel Analytics (or Plausible)
-   — page views, create-flow completion, practice-mode usage. No
-   video-related data collected, consistent with the brand. Done when:
-   dashboard shows real events.
-2. **Consent + ads.** AdSense (or similar) on public breakdown pages
-   and landing only — never the create/practice tool views. Consent
-   banner where required. Files: layout for ad slots, public page.
-   Done when: ads render for logged-out visitors on content pages
-   only. GATE: do not start until analytics shows meaningful organic
-   traffic (Ashwin's call on the number).
-3. **Performance budget.** Lighthouse pass on public pages (ads are
-   heavy — keep content pages fast anyway). Done when: mobile score
-   stays >80 with ads mounted.
+1. **Analytics.** Vercel Analytics or Plausible: visits, create
+   completion, practice usage, share opens. Done when: dashboard live.
+2. **Pro tier.** Free: N breakdowns / length cap. Pro (price = Ashwin's
+   call): unlimited + longer videos + team space grouping. Stripe or
+   Lemon Squeezy checkout. Done when: a real card can pay and limits
+   enforce server-side.
 
-### M5 — Growth automation (behind-the-scenes AI work)
+### M5 — Scale monetization (traffic-gated)
 
-1. **Content pipeline doc.** A written weekly loop: pick 3 trending
-   dances → create breakdowns → publish → generate share assets. Files:
-   docs/growth-playbook.md in repo. Done when: playbook exists and one
-   full cycle has been run manually.
-2. **Share asset generation.** Auto-generate a short skeleton-preview
-   clip/GIF + caption per published breakdown for socials (client-side
-   render capture). Files: new export utility in the viewer. Done
-   when: one click yields a postable asset.
-3. **Programmatic SEO expansion.** Template pages per song/style built
-   from the breakdown library as it grows. Done when: song/style index
-   pages exist and are indexed.
+1. **Ads on content pages** once the agreed traffic bar is hit;
+   consent banner; never on create/practice. Done when: ads render on
+   public pages only and mobile Lighthouse stays >80.
+2. **Team plan probe.** If ≥3 organic teams exist, interview captains;
+   scope a team plan with Ashwin. Done when: written scope, decision
+   made.
 
 ## 7. Handoff notes
 
-- The privacy rule is the moat AND the constraint: every M3+ feature
-  must be checked against "does any video/frame leave the device?" If
-  yes, redesign it (store keypoints, not pixels).
-- Anonymous → account upgrade (M2.3) is the trickiest task: read the
-  Supabase docs on converting anonymous users before coding; test the
-  breakdown-survival case explicitly.
-- MediaPipe runs on the main thread today; if mobile perf (M1.2) is
-  bad, move detection to a Web Worker before adding features.
-- Decisions reserved for Ashwin: the name (M2.1), pricing/traffic gate
-  for ads (M4.2), which dances to seed (M3.3).
-- Work milestones strictly in order — ads before content (M4 before
-  M3) would poison the brand; content before practice quality (M3
-  before M1) earns traffic that bounces.
-- After each session: build + lint, then run project-handoff.
+- The G0 gate is the whole point of v2 — a cheaper model must not
+  "helpfully" start M1 because the tasks look clear. Numbers first.
+- The skeleton is the marketing hook and maybe the learning aid; the
+  side-by-side hedge (M1.1) means the product works either way.
+- Privacy rule doubles as brand: check every public-page feature
+  against "does any video/frame leave the device?"
+- Money order is Pro → ads → teams. Anyone reordering that needs
+  Ashwin's sign-off.
+- Decisions reserved for Ashwin: name/domain, Pro price, ad-traffic
+  bar, which dances get published publicly.
+- After each session: build + lint, update HANDOFF.md, commit (run
+  the project-handoff skill).

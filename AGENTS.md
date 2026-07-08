@@ -6,12 +6,16 @@ is PLAN.md — work it in order.
 
 ## What this is
 
-A proof of concept for a dance-learning app. Upload a dance video, run
-pose detection **in the browser**, and show only a white skeleton
-figure. The user builds a step-by-step breakdown on a timeline (steps
-tagged with a word/lyric), and an AI helper suggests what gesture a
-word maps to. Explicitly a POC — favor the simplest thing that works
-over production hardening, but do not break the privacy rule below.
+A dance-learning product being built from POC toward a consumer
+platform (see PLAN.md v2 for the vetted goals: non-typical dancers
+learning from any video, group-share growth, Pro tier then ads).
+Upload a dance video, run pose detection **in the browser**, show a
+white skeleton figure alongside the local video. The user builds a
+step-by-step breakdown on a timeline (steps tagged with a word/lyric),
+and an AI helper suggests what gesture a word maps to. The codebase is
+still POC-grade — favor the simplest thing that works, but do not
+break the privacy rule below, and do not build past the current
+PLAN.md milestone gate.
 
 ## The hard rule: the video never leaves the device
 

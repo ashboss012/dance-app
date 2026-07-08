@@ -8,10 +8,11 @@ remote yet (PLAN M2.2 creates it alongside the deploy).
 AGENTS.md → the one absolute rule: the video never leaves the device.
 Pose detection is in-browser (MediaPipe); Supabase stores breakdown
 metadata and steps only, via anonymous auth.
-PLAN.md → the standing roadmap: POC → practice-worthy core → named,
-deployed platform with optional accounts → SEO content engine (public
-skeleton pages are the ad inventory) → ads + analytics → weekly AI
-marketing loop.
+PLAN.md → the standing roadmap (v2, rewritten 2026-07-08 after a
+viability vet): M0 zero-dollar validation sprint with a hard G0
+kill-gate → practice core (side-by-side original + skeleton) →
+share-link platform → content engine → Pro tier revenue → ads only
+at a traffic gate. Money order is Pro → ads → teams.
 
 ## Current state
 
@@ -33,5 +34,6 @@ marketing loop.
 
 ## Next up
 
-PLAN.md → M1 task 1: practice mode (loop a step segment with 0.25x–1x
-speed control). Then M1 in order.
+PLAN.md → M0 task 1: the validation sprint (skeleton clips posted,
+5 deadline-dancer tests, share-rate count). Building M1 before G0 has
+numbers is explicitly forbidden by the plan.
