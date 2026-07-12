@@ -61,6 +61,14 @@ export default function SkeletonViewer({ videoFile, loadId }: Props) {
   const [beatChunkSize, setBeatChunkSize] = useState<4 | 8 | 16>(8);
   const [learningStarted, setLearningStarted] = useState(false);
 
+  type LearningPhase =
+    | { kind: "idle" }
+    | { kind: "learning"; stepIndex: number }
+    | { kind: "runTogether"; upToIndex: number; nextStepIndex: number | null }
+    | { kind: "done" };
+  const [learningPhase, setLearningPhase] = useState<LearningPhase>({ kind: "idle" });
+  const loopingRef = useRef(false);
+
   // Guided practice session state
   type PracticeTask = { label: string; stepsToPlay: Step[] };
   type PracticePhase =
@@ -224,9 +232,27 @@ export default function SkeletonViewer({ videoFile, loadId }: Props) {
     const generated = generateStepsFromBeats(beatTimestamps, beatChunkSize, duration);
     setSteps(generated);
     setLearningStarted(true);
-    // Kick off the snowball practice plan using the freshly generated steps
-    const tasks = buildPracticePlan(generated, beatChunkSize);
-    setPractice({ kind: "task", taskIndex: 0, tasks, played: false });
+    setLearningPhase({ kind: "learning", stepIndex: 0 });
+    loopingRef.current = true;
+    // loopCurrentStep runs via the useEffect watching learningPhase,
+    // but steps state won't have updated yet — drive it directly with generated
+    const step = generated[0];
+    const videoEl = videoRef.current;
+    const audioEl = audioRef.current;
+    if (!step || !videoEl) return;
+    setPlayingStepIndex(0);
+    videoEl.currentTime = step.start;
+    videoEl.playbackRate = playbackRate;
+    playRangeRef.current = {
+      stopAt: step.end,
+      onDone: () => { if (loopingRef.current) loopCurrentStep(0); },
+    };
+    videoEl.play().catch(() => {});
+    if (audioEl) {
+      audioEl.currentTime = step.start;
+      audioEl.playbackRate = playbackRate;
+      audioEl.play().catch(() => {});
+    }
   }
 
   async function handleSave() {
@@ -549,7 +575,7 @@ export default function SkeletonViewer({ videoFile, loadId }: Props) {
 
   // Plays a sequence of steps. If a self-recording exists, syncs it to the
   // same time offsets relative to when the recording started.
-  function playSequence(sequence: Step[]) {
+  function playSequence(sequence: Step[], onComplete?: () => void) {
     const videoEl = videoRef.current;
     if (!videoEl || sequence.length === 0) return;
 
@@ -557,7 +583,6 @@ export default function SkeletonViewer({ videoFile, loadId }: Props) {
       if (!videoEl) return;
       const step = sequence[index];
       const isLast = index === sequence.length - 1;
-      // Find this step's position in the full steps array for the beat counter
       const globalIndex = steps.findIndex((s) => s.id === step.id);
       setPlayingStepIndex(globalIndex === -1 ? null : globalIndex);
       videoEl.currentTime = step.start;
@@ -565,7 +590,7 @@ export default function SkeletonViewer({ videoFile, loadId }: Props) {
       playRangeRef.current = {
         stopAt: step.end,
         onDone: isLast
-          ? () => setPlayingStepIndex(null)
+          ? () => { setPlayingStepIndex(null); onComplete?.(); }
           : () => playFrom(index + 1),
       };
       videoEl.play().catch(() => {});
@@ -604,6 +629,77 @@ export default function SkeletonViewer({ videoFile, loadId }: Props) {
   function playFromTop() {
     playSequence(steps);
   }
+
+  // --- Session 2: snowball learning loop ---
+
+  function loopCurrentStep(stepIndex: number) {
+    const step = steps[stepIndex];
+    const videoEl = videoRef.current;
+    if (!step || !videoEl) return;
+    setPlayingStepIndex(stepIndex);
+    videoEl.currentTime = step.start;
+    videoEl.playbackRate = playbackRate;
+    playRangeRef.current = {
+      stopAt: step.end,
+      onDone: () => { if (loopingRef.current) loopCurrentStep(stepIndex); },
+    };
+    videoEl.play().catch(() => {});
+    const audioEl = audioRef.current;
+    if (audioEl) {
+      audioEl.currentTime = step.start;
+      audioEl.playbackRate = playbackRate;
+      audioEl.play().catch(() => {});
+    }
+  }
+
+  function handleWatchAgain() {
+    if (learningPhase.kind !== "learning") return;
+    loopCurrentStep(learningPhase.stepIndex);
+  }
+
+  function handleIveGotIt() {
+    if (learningPhase.kind !== "learning") return;
+    const { stepIndex } = learningPhase;
+    loopingRef.current = false;
+    videoRef.current?.pause();
+    audioRef.current?.pause();
+    const isLast = stepIndex === steps.length - 1;
+    if (stepIndex === 0 && !isLast) {
+      // First step done — go straight to step 2, no run-together yet
+      setLearningPhase({ kind: "learning", stepIndex: 1 });
+    } else {
+      // Run everything learned so far, then advance
+      setLearningPhase({
+        kind: "runTogether",
+        upToIndex: stepIndex,
+        nextStepIndex: isLast ? null : stepIndex + 1,
+      });
+    }
+  }
+
+  function handleReplayStep(stepIndex: number) {
+    loopingRef.current = true;
+    setLearningPhase({ kind: "learning", stepIndex });
+  }
+
+  // Drive playback whenever learningPhase changes
+  useEffect(() => {
+    if (learningPhase.kind === "learning") {
+      loopingRef.current = true;
+      loopCurrentStep(learningPhase.stepIndex);
+    } else if (learningPhase.kind === "runTogether") {
+      loopingRef.current = false;
+      const { upToIndex, nextStepIndex } = learningPhase;
+      playSequence(steps.slice(0, upToIndex + 1), () => {
+        if (nextStepIndex === null) {
+          setLearningPhase({ kind: "done" });
+        } else {
+          setLearningPhase({ kind: "learning", stepIndex: nextStepIndex });
+        }
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [learningPhase]);
 
   // --- Phase 4: self-recording ---
 
@@ -712,29 +808,53 @@ export default function SkeletonViewer({ videoFile, loadId }: Props) {
                 </span>
               </div>
             )}
+            {learningStarted && learningPhase.kind === "learning" && (
+              <div className="pointer-events-none absolute top-3 left-0 right-0 flex justify-center">
+                <span className="rounded bg-black/70 px-3 py-1 text-sm font-medium text-white">
+                  Step {learningPhase.stepIndex + 1} of {steps.length}
+                </span>
+              </div>
+            )}
+            {learningStarted && learningPhase.kind === "runTogether" && (
+              <div className="pointer-events-none absolute top-3 left-0 right-0 flex justify-center px-4">
+                <span className="rounded bg-indigo-900/80 px-3 py-1 text-center text-sm font-medium text-indigo-200">
+                  Now let&apos;s put it all together from the top
+                </span>
+              </div>
+            )}
           </div>
-          {/* Live beat counter — shows during step/chunk/from-the-top playback */}
+          {/* Live beat count — individual numbers highlighted as each beat hits */}
           {(() => {
             if (playingStepIndex === null) return null;
             const ps = steps[playingStepIndex];
             if (!ps || !ps.count || ps.count < 1) return null;
-            const elapsed = currentTime - ps.start;
-            const beatInterval = (ps.end - ps.start) / ps.count;
-            const beatNum = Math.min(
-              ps.count,
-              Math.floor(elapsed / beatInterval) + 1
+            // Find which beats belong to this step using the detected timestamps (ms)
+            const stepStartMs = ps.start * 1000;
+            const stepEndMs = ps.end * 1000;
+            const stepBeats = beatTimestamps.filter(
+              (t) => t >= stepStartMs && t < stepEndMs
             );
+            const nowMs = currentTime * 1000;
+            // Which beat number are we on? (1-indexed)
+            let activeBeat = 0;
+            for (let i = 0; i < stepBeats.length; i++) {
+              if (nowMs >= stepBeats[i]) activeBeat = i + 1;
+            }
+            const totalBeats = ps.count;
             return (
-              <div className="mt-2 flex items-center justify-center gap-3">
-                <span className="text-5xl font-bold tabular-nums text-white">
-                  {beatNum}
-                </span>
-                <span className="text-sm text-zinc-400">/ {ps.count}</span>
-                {ps.word_tag && (
-                  <span className="rounded bg-zinc-800 px-2 py-0.5 text-sm text-zinc-300">
-                    {ps.word_tag}
+              <div className="mt-2 flex flex-wrap justify-center gap-2">
+                {Array.from({ length: totalBeats }, (_, i) => (
+                  <span
+                    key={i}
+                    className={`text-2xl font-bold tabular-nums transition-colors ${
+                      activeBeat === i + 1
+                        ? "text-white scale-125 inline-block"
+                        : "text-zinc-600"
+                    }`}
+                  >
+                    {i + 1}
                   </span>
-                )}
+                ))}
               </div>
             );
           })()}
@@ -866,273 +986,71 @@ export default function SkeletonViewer({ videoFile, loadId }: Props) {
         </div>
       )}
 
-      {status === "ready" && duration > 0 && learningStarted && (
-        <div className="w-full max-w-xl">
-          <Timeline
-            duration={duration}
-            currentTime={currentTime}
-            steps={steps}
-            pendingStart={pendingStart}
-            chunkSize={chunkSize}
-            selectedStepId={selectedStepId}
-            onTap={handleTimelineTap}
-            onCancelPending={handleCancelPending}
-            onSelectStep={setSelectedStepId}
-            onDeleteStep={handleDeleteStep}
-          />
+      {/* Learning loop UI */}
+      {learningStarted && learningPhase.kind !== "idle" && (
+        <div className="flex w-full max-w-xl flex-col items-center gap-5">
 
-          {/* Phase 5 — beat count + meaning tag detail panel */}
-          {selectedIndex !== -1 && (() => {
-            const s = steps[selectedIndex];
-            return (
-              <div className="mt-3 rounded border border-zinc-700 p-3">
-                <p className="mb-2 text-xs font-medium text-zinc-400">
-                  Step {selectedIndex + 1}&nbsp;
-                  <span className="font-normal text-zinc-500">
-                    {fmt(s.start)} – {fmt(s.end)}
-                  </span>
-                </p>
-                <div className="flex flex-col gap-2">
-                  {/* Beat count */}
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-zinc-400">Beat count</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={s.count ?? ""}
-                      onChange={(e) =>
-                        handleUpdateStep(s.id, {
-                          count: e.target.value ? Number(e.target.value) : undefined,
-                        })
-                      }
-                      placeholder="—"
-                      className="w-14 rounded bg-zinc-800 px-2 py-1 text-center text-xs text-white placeholder-zinc-600"
-                    />
-                    <span className="text-xs text-zinc-600">
-                      {s.count ? "auto-detected · override if wrong" : "no audio detected"}
-                    </span>
-                  </div>
+          {learningPhase.kind === "runTogether" && (
+            <p className="text-center text-sm text-indigo-300">
+              Watch the whole sequence — this is how it all connects.
+            </p>
+          )}
 
-                  {/* Word / lyric */}
-                  <label className="flex flex-col gap-0.5 text-xs text-zinc-400">
-                    Word / lyric
-                    <input
-                      type="text"
-                      value={s.word_tag ?? ""}
-                      onChange={(e) =>
-                        handleUpdateStep(s.id, { word_tag: e.target.value || undefined })
-                      }
-                      placeholder='e.g. "step" or "right foot"'
-                      className="rounded bg-zinc-800 px-2 py-1 text-white placeholder-zinc-600"
-                    />
-                  </label>
-
-                  {/* Meaning / gesture + Gemini suggest */}
-                  <div className="flex flex-col gap-0.5">
-                    <label className="text-xs text-zinc-400">Meaning / gesture</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={s.meaning_tag ?? ""}
-                        onChange={(e) =>
-                          handleUpdateStep(s.id, { meaning_tag: e.target.value || undefined })
-                        }
-                        placeholder='e.g. "wave arms outward"'
-                        className="flex-1 rounded bg-zinc-800 px-2 py-1 text-xs text-white placeholder-zinc-600"
-                      />
-                      <button
-                        onClick={() => handleSuggestMeaning(s.id, s.word_tag ?? "")}
-                        disabled={!s.word_tag || suggestState === "loading"}
-                        title="Ask Gemini to suggest a gesture from the word/lyric"
-                        className="rounded bg-violet-700 px-2 py-1 text-xs font-medium text-white disabled:opacity-40"
-                      >
-                        {suggestState === "loading" ? "…" : "Suggest"}
-                      </button>
-                    </div>
-                    {suggestState === "error" && (
-                      <p className="mt-0.5 text-xs text-red-400">
-                        Failed — is GEMINI_API_KEY set in .env.local?
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-1 text-xs text-zinc-400">
-              Chunk size
-              <input
-                type="number"
-                min={1}
-                max={steps.length || 1}
-                value={chunkSize}
-                onChange={(e) =>
-                  setChunkSize(Math.max(1, Number(e.target.value) || 1))
-                }
-                className="w-12 rounded bg-zinc-800 px-1 py-0.5 text-center text-white"
-              />
-            </label>
-
-            <button
-              onClick={playSelectedStep}
-              disabled={selectedIndex === -1}
-              className="rounded bg-emerald-500 px-3 py-1.5 text-xs font-medium text-black disabled:opacity-40"
-            >
-              Play this step
-            </button>
-            <button
-              onClick={playChunkFromSelected}
-              disabled={selectedIndex === -1}
-              className="rounded bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
-            >
-              Play chunk
-            </button>
-            <button
-              onClick={playFromTop}
-              disabled={steps.length === 0}
-              className="rounded border border-gray-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
-            >
-              From the top
-            </button>
-
-            <button
-              onClick={handleSave}
-              disabled={steps.length === 0 || saveState === "saving"}
-              className="rounded bg-sky-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
-            >
-              {saveState === "saving" ? "Saving..." : "Save breakdown"}
-            </button>
-            {saveState === "saved" && (
-              <span className="text-xs text-emerald-400">Saved</span>
-            )}
-            {saveState === "error" && (
-              <span className="text-xs text-red-400">{saveError}</span>
-            )}
-          </div>
-
-          {/* Guided practice session */}
-          {steps.length > 0 && (
-            <div className="mt-4 rounded border border-indigo-800 bg-indigo-950/40 p-3">
-              {practice.kind === "idle" && (
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs text-indigo-300">
-                    <span className="font-semibold">Guided practice</span> — the app walks you through chunk by chunk, building up until you have the whole thing.
-                  </p>
-                  <button
-                    onClick={startPractice}
-                    className="shrink-0 rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
-                  >
-                    Start session
-                  </button>
-                </div>
-              )}
-
-              {practice.kind === "task" && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-xs text-indigo-400">
-                        Step {practice.taskIndex + 1} of {practice.tasks.length}
-                      </p>
-                      <p className="text-sm font-medium text-white">
-                        {practice.tasks[practice.taskIndex].label}
-                      </p>
-                    </div>
-                    <button
-                      onClick={stopPractice}
-                      className="shrink-0 text-xs text-zinc-500 hover:text-zinc-300"
-                    >
-                      Exit
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={practiceAgain}
-                      className="rounded border border-indigo-600 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-900"
-                    >
-                      ↺ Play again
-                    </button>
-                    <button
-                      onClick={practiceNext}
-                      className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
-                    >
-                      {practice.taskIndex + 1 < practice.tasks.length ? "✓ Good, next →" : "✓ Done!"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {practice.kind === "done" && (
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-emerald-400">
-                    You ran the whole thing! Great work.
-                  </p>
-                  <button
-                    onClick={startPractice}
-                    className="shrink-0 rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
-                  >
-                    Practice again
-                  </button>
-                </div>
-              )}
+          {learningPhase.kind === "done" && (
+            <div className="flex flex-col items-center gap-3 text-center">
+              <p className="text-lg font-semibold text-emerald-400">You ran the whole thing!</p>
+              <button
+                onClick={() => handleReplayStep(0)}
+                className="rounded bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+              >
+                Practice again from Step 1
+              </button>
             </div>
           )}
 
-          {/* Phase 4 — Mirror recording controls */}
-          <div className="mt-4 rounded border border-zinc-700 p-3">
-            <p className="mb-2 text-xs font-medium text-zinc-300">
-              Mirror — record yourself dancing
-            </p>
-            {cameraError && (
-              <p className="mb-2 text-xs text-red-400">{cameraError}</p>
-            )}
-            <div className="flex flex-wrap gap-2">
-              {recordingState === "idle" && (
-                <button
-                  onClick={startRecording}
-                  className="rounded bg-rose-600 px-3 py-1.5 text-xs font-medium text-white"
-                >
-                  Start recording
-                </button>
-              )}
-              {recordingState === "recording" && (
-                <button
-                  onClick={stopRecording}
-                  className="flex items-center gap-1.5 rounded bg-rose-600 px-3 py-1.5 text-xs font-medium text-white"
-                >
-                  <span className="inline-block h-2 w-2 rounded-full bg-white" />
-                  Stop recording
-                </button>
-              )}
-              {recordingState === "recorded" && (
-                <>
-                  <span className="self-center text-xs text-emerald-400">
-                    Recording ready — use the play buttons above to compare
-                  </span>
-                  <button
-                    onClick={discardRecording}
-                    className="rounded border border-zinc-600 px-3 py-1.5 text-xs text-zinc-400"
-                  >
-                    Discard &amp; re-record
-                  </button>
-                </>
-              )}
+          {learningPhase.kind === "learning" && (
+            <div className="flex gap-3">
+              <button
+                onClick={handleWatchAgain}
+                className="rounded border border-zinc-600 px-5 py-2.5 text-sm font-medium text-white hover:border-zinc-400"
+              >
+                Watch Again
+              </button>
+              <button
+                onClick={handleIveGotIt}
+                className="rounded bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-500"
+              >
+                I&apos;ve Got It
+              </button>
             </div>
-            {recordingState === "idle" && (
-              <p className="mt-1.5 text-xs text-zinc-500">
-                Hit &ldquo;Start recording&rdquo; then play the skeleton — your
-                camera rolls alongside it. When done, play steps or chunks to
-                compare side by side.
-              </p>
-            )}
-            {recordingState === "recording" && (
-              <p className="mt-1.5 text-xs text-zinc-500">
-                Recording… play the skeleton now and dance along.
-              </p>
-            )}
-          </div>
+          )}
+
+          {/* Progress row — tap any learned step to replay it */}
+          {(() => {
+            const learnedUpTo =
+              learningPhase.kind === "learning" ? learningPhase.stepIndex
+              : learningPhase.kind === "runTogether" ? learningPhase.upToIndex
+              : steps.length - 1;
+            if (learnedUpTo < 0) return null;
+            return (
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {steps.slice(0, learnedUpTo + 1).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleReplayStep(i)}
+                    title={`Replay step ${i + 1}`}
+                    className={`h-8 w-8 rounded-full text-xs font-medium transition-colors ${
+                      learningPhase.kind === "learning" && learningPhase.stepIndex === i
+                        ? "bg-indigo-600 text-white"
+                        : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
